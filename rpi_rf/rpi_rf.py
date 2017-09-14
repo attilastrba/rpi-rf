@@ -6,7 +6,10 @@ import logging
 import time
 from collections import namedtuple
 
-from RPi import GPIO
+try:
+    from RPi import GPIO
+except RuntimeError:
+    from OPi import GPIO
 
 MAX_CHANGES = 67
 
