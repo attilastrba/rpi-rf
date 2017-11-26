@@ -1,114 +1,50 @@
 rpi-rf
 ======
+This is a modified version to work with Turris Omnia and the home assistant in the lxc container
 
-Introduction
-------------
+Instal Home Assistant with lxc in turris:
+1. Follow this guide https://beenje.github.io/blog/posts/home-assistant-on-turris-omnia-via-lxc-container/ (also in my google drive)
+  BUT we need root rights to access /dev/mem so don't create user instead run it as root
+  python3 -m venv $HOME/homeassistant 
+  pip3 install --upgrade homeassistant
+  #to start it write
+  hass
 
-Python module for sending and receiving 433/315MHz LPD/SRD signals with generic low-cost GPIO RF modules on a Raspberry Pi.
+2. Now we have to give access to the GPIO controll of the LXC Container
+Read here https://forum.turris.cz/t/controlling-gpio-from-lxc-container-with-python/5762/3
+lxc.cgroup.devices.allow = c 1:* rwm
+lxc.mount.entry = /dev/mem dev/mem  none bind,optional,create=file 0 0
 
-Protocol and base logic ported ported from `rc-switch`_.
+3. To install the turris-gpio do the following:
+ su -s /bin/bash homeassistant
+ git clone https://gitlab.labs.nic.cz/turris/python-turris-gpio.git
+ python3 setup.py install --board=Omnia
+ 
+4. To install rpi-rf do the following:
+ git clone https://github.com/milaq/rpi-rf
+ change the stuff to the turris-gpio
+ python3 setup.py install 
 
-Supported hardware
-------------------
+5. Example Home automation script
+switch:
+  platform: rpi_rf
+  gpio: 42
+  switches:
+      bedroom_light:
+        protocol: 1
+        pulselength: 316
+        code_on: 5393
+        code_off: 5396
+        signal_repetitions: 15
 
-Most generic 433/315MHz capable modules (cost: ~2€) connected via GPIO to a Raspberry Pi.
+automation:
+  trigger:
+    platform: time
+    # Matches every hour at 5 minutes past whole
+    minutes: 4
+    seconds: 20
+  action:
+    service: switch.turn_on
+    entity_id: switch.bedroom_light
+~                                      
 
-.. figure:: http://i.imgur.com/vG89UP9.jpg
-   :alt: 433modules
-
-Compatibility
--------------
-
-Generic RF outlets and most 433/315MHz switches (cost: ~15€/3pcs).
-
-.. figure:: http://i.imgur.com/WVRxvWe.jpg
-   :alt: rfoutlet
-
-
-Chipsets:
-
-* SC5262 / SC5272
-* HX2262 / HX2272
-* PT2262 / PT2272
-* EV1527 / RT1527 / FP1527 / HS1527
-
-For a full list of compatible devices and chipsets see the `rc-switch Wiki`_
-
-Dependencies
-------------
-
-::
-
-    RPi.GPIO
-
-Installation
-------------
-
-On your Raspberry Pi, install the *rpi_rf* module via pip.
-
-Python 3::
-
-    # apt-get install python3-pip
-    # pip3 install rpi-rf
-
-Wiring diagram (example)
-------------------------
-
-Raspberry Pi 1/2(B+)::
-
-                       RPI GPIO HEADER
-                  ____________
-                 |        ____|__
-                 |       |    |  |
-                 |     01|  . x  |02
-                 |       |  . x__|________       RX
-                 |       |  . x__|______  |   ________
-                 |       |  . .  |      | |  |        |
-       TX        |   ____|__x .  |      | |__|VCC     |
-     _______     |  |  __|__x .  |      |    |        |
-    |       |    |  | |  |  x____|______|____|DATA    |
-    |    GND|____|__| |  |  . .  |      |    |        |
-    |       |    |    |  |  . .  |      |    |DATA    |
-    |    VCC|____|    |  |  . .  |      |    |        |
-    |       |         |  |  . .  |      |____|GND     |
-    |   DATA|_________|  |  . .  |           |________|
-    |_______|            |  . .  |
-                         |  . .  |
-                         |  . .  |
-                         |  . .  |
-                         |  . .  |
-                         |  . .  |
-                         |  . .  |
-                       39|  . .  |40
-                         |_______|
-
-    TX:
-       GND > PIN 09 (GND)
-       VCC > PIN 02 (5V)
-      DATA > PIN 11 (GPIO17)
-
-    RX:
-       VCC > PIN 04 (5V)
-      DATA > PIN 13 (GPIO27)
-       GND > PIN 06 (GND)
-
-Usage
------
-
-See `scripts`_ (`rpi-rf_send`_, `rpi-rf_receive`_) which are also shipped as cmdline tools.
-
-Open Source
------------
-
-* The code is licensed under the `BSD Licence`_
-* The project source code is hosted on `GitHub`_
-* Please use `GitHub issues`_ to submit bugs and report issues
-
-.. _rc-switch: https://github.com/sui77/rc-switch
-.. _rc-switch Wiki: https://github.com/sui77/rc-switch/wiki
-.. _BSD Licence: http://www.linfo.org/bsdlicense.html
-.. _GitHub: https://github.com/milaq/rpi-rf
-.. _GitHub issues: https://github.com/milaq/rpi-rf/issues
-.. _scripts: https://github.com/milaq/rpi-rf/blob/master/scripts
-.. _rpi-rf_send: https://github.com/milaq/rpi-rf/blob/master/scripts/rpi-rf_send
-.. _rpi-rf_receive: https://github.com/milaq/rpi-rf/blob/master/scripts/rpi-rf_receive

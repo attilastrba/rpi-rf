@@ -6,7 +6,9 @@ import logging
 import time
 from collections import namedtuple
 
-from RPi import GPIO
+#from RPi import GPIO
+#from turris_gpio import GPIO
+import turris_gpio as GPIO
 
 MAX_CHANGES = 67
 
