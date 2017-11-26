@@ -2,11 +2,12 @@
 Sending and receiving 433/315Mhz signals with low-cost GPIO RF Modules on a Raspberry Pi.
 """
 
+import turris_gpio as GPIO
 import logging
 import time
 from collections import namedtuple
 
-from RPi import GPIO
+#from RPi import GPIO
 
 MAX_CHANGES = 67
 
@@ -56,7 +57,7 @@ class RFDevice:
         self.rx_pulselength = None
 
         GPIO.setmode(GPIO.BCM)
-        _LOGGER.debug("Using GPIO " + str(gpio))
+        _LOGGER.info("Using GPIO " + str(gpio))
 
     def cleanup(self):
         """Disable TX and RX and clean up GPIO."""
@@ -64,7 +65,7 @@ class RFDevice:
             self.disable_tx()
         if self.rx_enabled:
             self.disable_rx()
-        _LOGGER.debug("Cleanup")
+        _LOGGER.info("Cleanup")
         GPIO.cleanup()
 
     def enable_tx(self):
@@ -75,7 +76,9 @@ class RFDevice:
         if not self.tx_enabled:
             self.tx_enabled = True
             GPIO.setup(self.gpio, GPIO.OUT)
-            _LOGGER.debug("TX enabled")
+            _LOGGER.info("TX enabled")
+            GPIO.output(self.gpio, GPIO.LOW)
+	    time.sleep(3)
         return True
 
     def disable_tx(self):
@@ -84,7 +87,7 @@ class RFDevice:
             # set up GPIO pin as input for safety
             GPIO.setup(self.gpio, GPIO.IN)
             self.tx_enabled = False
-            _LOGGER.debug("TX disabled")
+            _LOGGER.info("TX disabled")
         return True
 
     def tx_code(self, code, tx_proto=None, tx_pulselength=None):
@@ -103,12 +106,12 @@ class RFDevice:
         else:
             self.tx_pulselength = PROTOCOLS[self.tx_proto].pulselength
         rawcode = format(code, '#0{}b'.format(self.tx_length + 2))[2:]
-        _LOGGER.debug("TX code: " + str(code))
+        _LOGGER.info("TX code: " + str(code))
         return self.tx_bin(rawcode)
 
     def tx_bin(self, rawcode):
         """Send a binary code."""
-        _LOGGER.debug("TX bin: " + str(rawcode))
+        _LOGGER.info("TX bin: " + str(rawcode))
         for _ in range(0, self.tx_repeat):
             for byte in range(0, self.tx_length):
                 if rawcode[byte] == '0':
@@ -151,6 +154,7 @@ class RFDevice:
         if not self.tx_enabled:
             _LOGGER.error("TX is not enabled, not sending data")
             return False
+
         GPIO.output(self.gpio, GPIO.HIGH)
         time.sleep((highpulses * self.tx_pulselength) / 1000000)
         GPIO.output(self.gpio, GPIO.LOW)
@@ -167,7 +171,7 @@ class RFDevice:
             GPIO.setup(self.gpio, GPIO.IN)
             GPIO.add_event_detect(self.gpio, GPIO.BOTH)
             GPIO.add_event_callback(self.gpio, self.rx_callback)
-            _LOGGER.debug("RX enabled")
+            _LOGGER.info("RX enabled")
         return True
 
     def disable_rx(self):
@@ -175,13 +179,15 @@ class RFDevice:
         if self.rx_enabled:
             GPIO.remove_event_detect(self.gpio)
             self.rx_enabled = False
-            _LOGGER.debug("RX disabled")
+            _LOGGER.info("RX disabled")
         return True
 
     # pylint: disable=unused-argument
     def rx_callback(self, gpio):
         """RX callback for GPIO event detection. Handle basic signal detection."""
-        timestamp = int(time.perf_counter() * 1000000)
+        #timestamp = int(time.perf_counter() * 1000000)
+#had to modify as pref_counter is not known in python2
+        timestamp = int(time.time() * 1000000)
         duration = timestamp - self._rx_last_timestamp
 
         if duration > 5000:
@@ -191,7 +197,7 @@ class RFDevice:
                 if self._rx_repeat_count == 2:
                     for pnum in range(1, len(PROTOCOLS)):
                         if self._rx_waveform(pnum, self._rx_change_count, timestamp):
-                            _LOGGER.debug("RX code " + str(self.rx_code))
+                            _LOGGER.info("RX code " + str(self.rx_code))
                             break
                     self._rx_repeat_count = 0
             self._rx_change_count = 0
